@@ -2,123 +2,43 @@
 
 [简体中文](README.md)
 
-A safe arranger for the Mihomo/Clash ecosystem. It keeps a stable, ordered, rollback-safe `fallback` group using long-window throughput ranking and live liveness probes.
+A command-line tool for [Mihomo](https://github.com/MetaCubeX/mihomo) / Clash.
 
-`v0.1.0` is experimental. It does not promise zero interruption.
+It does one job: rank nodes in **one** `fallback` proxy group from **download speed measured over a stretch of time**, then ask the controller “is this node alive right now?” before writing.
 
-## What it solves
+Mihomo `url-test` ranks on instant delay. Low delay is not high throughput, and it is not stability. This project keeps those two questions apart.
 
-Mihomo `url-test` rewrites the primary from instantaneous delay. Delay is not speed. This project keeps two truths apart:
+`v0.1.0` is experimental. **It does not promise zero interruption.** The default is print-only; it will not touch a live config unless you say so.
 
-1. **Score truth** — sustained throughput, loss, TLS/target reachability, red-sample ratio, sample count, confidence, inside a frozen `[start, end)` window.
-2. **Liveness truth** — controller `delay` / `generate_204` right now. Liveness only, never speed.
+## What it changes
 
-The output is an ordered `fallback` list. The kernel fails over when a node dies. The arranger rewrites only on sustained slowness, sustained death, config drift, or correlated failure.
+Only the node list and order of **one** `fallback` group you name. It does not touch DNS, TUN, routing rules, other groups, or subscription URLs.
 
-Precise claim:
-
-> Front of historical throughput under health, confidence, region, and failure-domain constraints.
-
-Not “the four fastest nodes on the internet”.
-
-## Non-goals
-
-- Chasing the lowest instant delay
-- Hopping on a single delay sample
-- Touching DNS, TUN, rules, Tailscale, or other groups
-- Reading subscription URLs or storing secrets in-tree
-- Auto-deploying onto anyone’s live network
-
-## Architecture and data flow
+If a node dies this second, Mihomo still fails over down the `fallback` list. This tool does not do instant switching. It decides who should sit in front over the next stretch of time.
 
 ```mermaid
 flowchart TD
-  sample[sample] --> rank[rank]
-  rank --> filter[filter]
-  filter --> mix[mix]
-  mix --> pre[pre-probe]
-  pre --> prepare[prepare]
-  prepare --> write[write]
-  write --> reload[reload]
-  reload --> api[API readback]
-  api --> post[post-probe]
-  post --> down[downstream sync]
-  down --> commit[commit / rollback]
+  A["Read speed samples"] --> B["Rank by throughput"]
+  B --> C["Mix different lines"]
+  C --> D["Probe liveness"]
+  D --> E["Write the fallback group"]
+  E --> F["Verify the write"]
+  F --> G["Commit or roll back"]
 ```
 
-See [docs/architecture.md](docs/architecture.md).
+Details: [docs/architecture.md](docs/architecture.md).
 
-## Two truths
+## What it will not do
 
-| Truth | Source | Use |
-|-------|--------|-----|
-| Score | Versioned JSONL, frozen `[start, end)` | Long-term ranking |
-| Liveness | Controller delay, at least two rounds | Pre-seat veto / escape |
+- Hop nodes because of a single ping
+- Claim “the four fastest nodes on the internet”
+- Read subscription URLs or store secrets in the repo
+- Auto-deploy onto anyone’s live network
+- Observe whether a phone app hot-reloaded — and it will not pretend it did
 
-One failed delay is jitter. Two failed rounds is death. A high historical score is not current liveness.
+## Five-minute run (fixtures, no live writes)
 
-## Sample schema
-
-JSONL must include `schema_version` (currently `1`):
-
-`ts`, `profile`, `site`, `node_id`, `provider`, `failure_domain`, `region`, `mbps`, `packet_loss_pct`, `target_ok`, `tls_ok`, `http_status`, `sample_valid`, `error_reason`
-
-Failed rows must not join the median as `0 Mbps`. Error reasons include `timeout`, `tls_failed`, `target_failed`, `clip_too_short`, `insufficient_samples`.
-
-Fictional boundary fixtures: [examples/samples.example.jsonl](examples/samples.example.jsonl).
-
-## Fixed windows
-
-Half-open `[start, end)`. Timezone is required. Re-running a shift reuses the same window. Samples after the end must not change that window. Tag cutoffs freeze at the exclusive end.
-
-Workstation example:
-
-| Shift | Kind | Interval |
-|-------|------|----------|
-| morning | previous day | `[09:00, 17:00)` |
-| midday | today | `[09:00, 12:30)` |
-| evening | previous day | `[17:00, 23:01)` |
-| evening-mid | today | `[17:00, 19:30)` |
-
-The router example has two daily shifts. Times come from config.
-
-## Tags, confidence, mixing
-
-Internal enums: `blocked` / `brittle` / `hardy` / `watch`. Display text may be localized.
-
-Confidence: `high` / `normal` / `degraded` / `none`. Low-sample candidates follow an explicit degrade policy. Every filter reason is structured in logs.
-
-Mixing is a generic provider / failure-domain constraint, not a branded `2+2`. Configure seat count, per-provider min/max, region allow-list, exit-IP dedupe, upstream dedupe, and whether unknown providers are allowed. The default example is four seats, two providers × two. A short pool degrades to `3+1` and logs why. Order: `filter -> confidence gate -> mix -> assert`. Disabled nodes cannot be filled back in.
-
-## Fallback, escape, sustained promotion
-
-The target group must be ordered `fallback`. The kernel handles death. The arranger handles slow seating.
-
-Probe at least twice before write and again after. A post-write failure is not success: roll back or try the next escape set. Several consecutive deaths trigger mass-failure escape. Single-node jitter uses cycle thresholds, isolation, recovery streaks, and rewrite cooldown.
-
-If the primary is alive but paired throughput stays worse, a healthier backup can be promoted to first. Only same-timestamp pairs count; they must span enough time and beat both ratio and absolute-gain thresholds. Defaults live in [docs/configuration.md](docs/configuration.md). A single delay sample is not speed.
-
-## Transactions, rollback, security
-
-Default is dry-run. Real writes need `--apply`. Human writes also need `--force-manual`. Only the target group is text-patched. Never `yaml.dump()` the whole document. Snapshot first; verify disk, API, optional downstream, and post-apply probes.
-
-Success: `disk == API == downstream` and post-probe pass. If a phone app hot-reload cannot be observed, do not pretend it confirmed, and do not block a successful file transaction. A reload disconnect is a soft failure only when disk/API already match and later probes pass; otherwise fail or roll back.
-
-CAS, exclusive locks, idempotent reruns, bounded retries, catch-up, manual lease, and explicit exit codes are supported. After a human pin, ordinary optimization only observes; mass failure may still escape.
-
-Secrets come only from the environment, a keychain item, or a `0600` file.
-
-## Support matrix
-
-| Capability | Status |
-|------------|--------|
-| macOS + Ubuntu CI / Python 3.11–3.12 | Tested |
-| `mihomo-local` / `stash-file` / `openclash-ssh` (injectable runner) | Tested with fakes / tempdirs |
-| Windows, real SSH, live controllers | Not claimed |
-
-Requires Python 3.11+ and PyYAML. The core stays pure Python.
-
-## Five-minute Quick Start (fixtures, no live writes)
+Python 3.11+. Example node names and `127.0.0.1:9090` are fictional.
 
 ```bash
 python3 -m venv .venv
@@ -131,34 +51,62 @@ python -m clash_arranger plan --config examples/workstation.example.yaml --windo
 python -m clash_arranger apply --config examples/workstation.example.yaml --window morning --now 2026-09-16T09:25:00+08:00
 ```
 
-The last command has no `--apply`. The first run must not write a live network.
+| Command | What it does |
+|---------|----------------|
+| `doctor` | Can the example config be read? |
+| `sample` | Load the example speed records |
+| `rank` | Rank by throughput in that window |
+| `plan` | Print a proposed order, write nothing |
+| `apply` | Still write nothing: dry-run unless you pass `--apply` |
 
-## Config, dry-run, schedulers
+Fixture rows: [examples/samples.example.jsonl](examples/samples.example.jsonl).
 
-Full table: [docs/configuration.md](docs/configuration.md).
+## When you really want a write
 
 ```bash
 clash-arranger --config your.yaml --window morning --scheduled --apply apply
 clash-arranger --config your.yaml --window morning --force-manual --apply apply
 ```
 
-macOS LaunchAgent: [examples/launchd/](examples/launchd/).  
-Linux systemd / cron: [examples/systemd/](examples/systemd/), [examples/cron/router.cron](examples/cron/router.cron).  
-OpenClash source of truth and downstream YAML: [docs/deployment.md](docs/deployment.md).
+No `--apply` means plan only. A human live write also needs `--force-manual`.
 
-Workstation example: shifts can be weekdays only; weekends no-op before any controller, probe, or downstream access.  
-Router example: two daily shifts plus all-day health, including weekends.
+Writes are a text patch of that one group, never a full `yaml.dump()`. Snapshot first; verify the file and the controller; roll back on failure.
 
-## Logs, status, troubleshooting, privacy
+Config keys: [docs/configuration.md](docs/configuration.md). Wiring Mihomo, a downstream file, or OpenClash: [docs/deployment.md](docs/deployment.md).
 
-State files live under `state_dir`: `status.json`, `health.json`, `manual-lease.json`. Do not commit them or real JSONL.
+Example schedulers:
 
-Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md).  
-Privacy: no telemetry. Examples use fictional names only (`provider-a`, `SG-A1`, `127.0.0.1:9090`). Do not paste live subscriptions or node tables into issues.
+- macOS LaunchAgent: [examples/launchd/](examples/launchd/)
+- Linux systemd / cron: [examples/systemd/](examples/systemd/), [examples/cron/router.cron](examples/cron/router.cron)
 
-Limits: phone-app hot reload is unobservable; no provider is guaranteed; first release is experimental.
+The workstation example can no-op on weekends. The router example runs morning and evening every day, plus all-day liveness checks.
 
-## Development, contributing, license
+## Ranking, short version
+
+Samples are JSONL rows and must include `schema_version`. A failed row must not enter the ranking as `0 Mbps`, or a timeout looks like a stable zero-speed node.
+
+Only samples inside the configured time window count. After ranking it still:
+
+- drops nodes that are clearly unfit
+- avoids filling the list from one provider / one exit
+- probes twice before write; one miss is jitter, two misses is dead
+- promotes a backup to first only if the primary stays alive but is lastingly slower
+
+Thresholds live in the configuration doc, not on this page.
+
+## What is tested
+
+| Capability | Status |
+|------------|--------|
+| macOS + Ubuntu CI, Python 3.11–3.12 | Tested |
+| Local Mihomo API, file sync, injectable OpenClash SSH | Tested with fakes / tempdirs |
+| Windows, real SSH, live controllers | Not claimed |
+
+Secrets come from an environment variable, a keychain item, or a `0600` file. Troubleshooting: [docs/troubleshooting.md](docs/troubleshooting.md).
+
+Do not paste live subscriptions, node tables, or home topology into issues. Examples use fake names only: `provider-a`, `SG-A1`, `127.0.0.1:9090`.
+
+## Development and license
 
 ```bash
 ruff format
@@ -168,6 +116,6 @@ pytest
 python scripts/check_readme_links.py
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md), [CHANGELOG.md](CHANGELOG.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [SECURITY.md](SECURITY.md) · [CHANGELOG.md](CHANGELOG.md)
 
 Apache-2.0. Runtime dependency PyYAML is MIT and compatible. See [LICENSE](LICENSE).
