@@ -1,0 +1,110 @@
+# Fictional workstation profile. Safe to parse and dry-run.
+# Never point this at a live controller on first run.
+
+profile: workstation
+timezone: Asia/Taipei
+state_dir: state
+samples_path: samples.example.jsonl
+banned_nodes: []
+disabled_nodes:
+  - US-X9
+
+schedule:
+  kind: weekdays_only
+  weekend_policy: no_op
+  shifts:
+    - {name: morning, at: "09:25", window: morning}
+    - {name: midday, at: "12:30", window: midday}
+    - {name: evening, at: "17:50", window: evening}
+    - {name: evening-mid, at: "19:30", window: evening-mid}
+
+windows:
+  morning:
+    kind: previous_day
+    start: "09:00"
+    end: "17:00"
+  midday:
+    kind: today
+    start: "09:00"
+    end: "12:30"
+  evening:
+    kind: previous_day
+    start: "17:00"
+    end: "23:01"
+  evening-mid:
+    kind: today
+    start: "17:00"
+    end: "19:30"
+
+mix:
+  seat_count: 4
+  allow_unknown_provider: false
+  region_allowlist: [SG, JP, TW, HK]
+  dedupe_exit_ip: true
+  dedupe_upstream: true
+  min_confidence_for_fill: degraded
+  providers:
+    provider-a: {min: 2, max: 2}
+    provider-b: {min: 2, max: 2}
+
+health:
+  url: https://www.gstatic.com/generate_204
+  timeout_ms: 5000
+  rounds: 2
+  fail_threshold: 2
+  unhealthy_cycles: 2
+  mass_dead: 3
+  isolate_sec: 900
+  rewrite_cooldown_sec: 600
+  recovery_passes: 2
+  escape_max_sets: 3
+
+promotion:
+  min_samples: 2
+  min_span_min: 50
+  min_gain_mbps: 8.0
+  min_ratio: 1.35
+  two_sample_max_main_mbps: 15.0
+  two_sample_min_gain_mbps: 12.0
+  two_sample_min_ratio: 1.75
+  cooldown_sec: 3600
+  lookback_min: 130
+
+tags:
+  min_healthy_mbps: 8.0
+  red_heavy_frac: 0.5
+  min_red_n: 2
+  brittle_ratio: 0.4
+  hat_window_hours: 48
+  pardon_nights: 2
+  pardon_loss_max: 5.0
+  high_n: 3
+  normal_n: 2
+  day_start: "09:00"
+  day_end: "17:00"
+  peak_start: "17:00"
+  peak_end: "23:01"
+
+sampling:
+  targets:
+    - https://speed.example.test/probe.bin
+  concurrency: 2
+  timeout_sec: 20
+  interval_sec: 600
+  active_hours: ["09:00", "23:00"]
+  regions: [SG, JP, TW, HK]
+
+controller:
+  adapter: mihomo-local
+  base_url: http://127.0.0.1:9090
+  group: surf-fallback
+  secret_env: MIHOMO_SECRET
+  yaml_path: workstation-config.example.yaml
+  reload: true
+
+downstream:
+  enabled: true
+  adapter: stash-file
+  path: downstream-config.example.yaml
+  source_proxy_defs: workstation-config.example.yaml
+  confirm_app_runtime: false

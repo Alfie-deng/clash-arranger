@@ -1,0 +1,12 @@
+[Unit]
+Description=Clash Arranger scheduled shift (dry-run until you add --apply)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=arranger
+WorkingDirectory=/opt/clash-arranger
+Environment=MIHOMO_SECRET_FILE=/etc/clash-arranger/secret
+ExecStart=/opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --scheduled apply
+# Real writes require --apply AND a scheduler-owned environment. Do not add --apply here
+# until you have tested fixture mode.

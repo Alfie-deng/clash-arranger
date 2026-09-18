@@ -1,0 +1,99 @@
+# Fictional router profile. Scheduler is expected to run on an always-on Linux host.
+
+profile: router
+timezone: Asia/Taipei
+state_dir: state
+samples_path: samples.example.jsonl
+banned_nodes: []
+disabled_nodes: []
+
+schedule:
+  kind: daily
+  weekend_policy: run
+  shifts:
+    - {name: morning, at: "09:20", window: morning}
+    - {name: evening, at: "17:20", window: evening}
+
+windows:
+  morning:
+    kind: previous_day
+    start: "09:00"
+    end: "17:00"
+  evening:
+    kind: previous_day
+    start: "17:00"
+    end: "23:01"
+
+mix:
+  seat_count: 4
+  allow_unknown_provider: false
+  region_allowlist: [SG, JP, TW, HK]
+  dedupe_exit_ip: true
+  dedupe_upstream: true
+  min_confidence_for_fill: degraded
+  providers:
+    provider-a: {min: 2, max: 2}
+    provider-b: {min: 2, max: 2}
+
+health:
+  url: https://www.gstatic.com/generate_204
+  timeout_ms: 5000
+  rounds: 2
+  fail_threshold: 2
+  unhealthy_cycles: 2
+  mass_dead: 3
+  isolate_sec: 900
+  rewrite_cooldown_sec: 600
+  recovery_passes: 2
+  escape_max_sets: 3
+
+promotion:
+  min_samples: 2
+  min_span_min: 50
+  min_gain_mbps: 8.0
+  min_ratio: 1.35
+  two_sample_max_main_mbps: 15.0
+  two_sample_min_gain_mbps: 12.0
+  two_sample_min_ratio: 1.75
+  cooldown_sec: 3600
+  lookback_min: 130
+
+tags:
+  min_healthy_mbps: 8.0
+  high_n: 3
+  normal_n: 2
+  day_start: "09:00"
+  day_end: "17:00"
+  peak_start: "17:00"
+  peak_end: "23:01"
+
+sampling:
+  targets:
+    - https://speed.example.test/probe.bin
+  concurrency: 2
+  timeout_sec: 20
+  interval_sec: 600
+  active_hours: ["09:00", "23:00"]
+  regions: [SG, JP, TW, HK]
+
+controller:
+  adapter: openclash-ssh
+  base_url: http://127.0.0.1:9090
+  group: surf-fallback
+  secret_env: MIHOMO_SECRET
+  yaml_path: workstation-config.example.yaml
+  reload: true
+
+openclash:
+  enabled: true
+  host: router-host.example.test
+  user: root
+  source_path: /etc/openclash/config/config.yaml
+  runtime_path: /etc/openclash/config.yaml
+  group: surf-fallback
+
+downstream:
+  enabled: false
+  adapter: stash-file
+  path: ""
+  confirm_app_runtime: false

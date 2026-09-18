@@ -1,0 +1,10 @@
+# Fictional always-on Linux host. Times are local to timezone in router.yaml.
+# Keep --apply off until fixture dry-run is green.
+
+20 9 * * *  /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window morning --scheduled apply
+30 9 * * *  /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window morning --scheduled apply
+50 9 * * *  /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window morning --scheduled apply
+20 17 * * * /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window evening --scheduled apply
+30 17 * * * /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window evening --scheduled apply
+50 17 * * * /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml --window evening --scheduled apply
+*/5 * * * * /opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml watch

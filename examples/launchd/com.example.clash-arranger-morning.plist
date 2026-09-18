@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.clash-arranger-morning</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>-m</string>
+    <string>clash_arranger</string>
+    <string>--config</string>
+    <string>/opt/clash-arranger/workstation.yaml</string>
+    <string>--window</string>
+    <string>morning</string>
+    <string>--scheduled</string>
+    <string>apply</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>1</integer>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>25</integer>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/opt/clash-arranger</string>
+</dict>
+</plist>

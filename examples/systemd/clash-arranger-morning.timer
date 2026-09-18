@@ -1,0 +1,10 @@
+[Unit]
+Description=Clash Arranger morning shift
+
+[Timer]
+OnCalendar=*-*-* 09:20:00
+Persistent=true
+Unit=clash-arranger-shift.service
+
+[Install]
+WantedBy=timers.target

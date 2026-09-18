@@ -1,0 +1,9 @@
+[Unit]
+Description=Clash Arranger health watch (dry-run by default)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=arranger
+WorkingDirectory=/opt/clash-arranger
+ExecStart=/opt/clash-arranger/venv/bin/clash-arranger --config /opt/clash-arranger/router.yaml watch

@@ -1,0 +1,50 @@
+# Fictional downstream file. File sync success is not app hot-reload confirmation.
+dns:
+  enable: true
+  nameserver:
+    - 8.8.8.8
+tun:
+  enable: true
+proxies:
+  - name: reserved-adapter
+    type: ss
+    server: 203.0.113.50
+    port: 443
+    cipher: aes-256-gcm
+    password: example-only-not-a-secret
+  - name: SG-A1
+    type: ss
+    server: 192.0.2.11
+    port: 443
+    cipher: aes-256-gcm
+    password: example-only-not-a-secret
+  - name: JP-B1
+    type: trojan
+    server: 198.51.100.21
+    port: 443
+    password: example-only-not-a-secret
+  - name: TW-A2
+    type: ss
+    server: 192.0.2.31
+    port: 8443
+    cipher: aes-256-gcm
+    password: example-only-not-a-secret
+  - name: HK-B2
+    type: trojan
+    server: 198.51.100.41
+    port: 443
+    password: example-only-not-a-secret
+proxy-groups:
+  - name: surf-fallback
+    type: fallback
+    interval: 30
+    timeout: 3000
+    lazy: false
+    proxies:
+      - SG-A1
+      - JP-B1
+      - TW-A2
+      - HK-B2
+rules:
+  - DOMAIN-SUFFIX,example.test,DIRECT
+  - MATCH,surf-fallback
