@@ -1,0 +1,39 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Packaging / test
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local operator state — never commit live samples or secrets
+state/
+logs/
+*.bak_*
+*.tmp_*
+*.rollback.*
+.secret
+*.pem
+*.key
+id_rsa
+id_ed25519
+*.ovpn
+
+# Editor
+.idea/
+.vscode/
+.DS_Store
