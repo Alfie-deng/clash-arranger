@@ -82,19 +82,6 @@ Workstation example:
 
 The router example has two daily shifts. Times come from config.
 
-```mermaid
-gantt
-  title Half-open windows Asia/Taipei
-  dateFormat HH:mm
-  axisFormat %H:%M
-  section previous day
-  morning [09:00,17:00) :09:00, 8h
-  evening [17:00,23:01) :17:00, 6h
-  section today
-  midday [09:00,12:30)  :09:00, 3.5h
-  evening-mid [17:00,19:30) :17:00, 2.5h
-```
-
 ## Tags, confidence, mixing
 
 Internal enums: `blocked` / `brittle` / `hardy` / `watch`. Display text may be localized.

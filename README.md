@@ -82,19 +82,6 @@ JSONL，必须带 `schema_version`（当前为 `1`）：
 
 路由器示例只有每天早晚两班，窗口来自配置，不是硬编码习惯。
 
-```mermaid
-gantt
-  title 半开窗口示意 Asia/Taipei
-  dateFormat HH:mm
-  axisFormat %H:%M
-  section 前日
-  morning [09:00,17:00) :09:00, 8h
-  evening [17:00,23:01) :17:00, 6h
-  section 当日
-  midday [09:00,12:30)  :09:00, 3.5h
-  evening-mid [17:00,19:30) :17:00, 2.5h
-```
-
 ## 标签、置信度、混部
 
 内部枚举：`blocked` / `brittle` / `hardy` / `watch`。展示文本可本地化。
